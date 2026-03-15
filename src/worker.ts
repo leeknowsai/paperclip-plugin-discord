@@ -22,6 +22,7 @@ import {
 } from "./formatters.js";
 import { handleInteraction, SLASH_COMMANDS } from "./commands.js";
 import { runIntelligenceScan, runBackfill } from "./intelligence.js";
+import { connectGateway } from "./gateway.js";
 
 type DiscordConfig = {
   discordBotTokenRef: string;
@@ -78,6 +79,19 @@ const plugin = definePlugin({
         }
       }
     }
+
+    // --- Gateway connection for local interaction handling ---
+    // The webhook-based interaction endpoint requires a public URL.
+    // The Gateway receives INTERACTION_CREATE events over WebSocket,
+    // so button clicks and slash commands work in local deployments too.
+    const gateway = await connectGateway(ctx, token, async (interaction) => {
+      return handleInteraction(ctx, interaction as any);
+    });
+
+    // Clean up Gateway connection when plugin stops
+    ctx.events.on("plugin.stopping", () => {
+      gateway.close();
+    });
 
     // --- Event subscriptions (notification pattern from Slack plugin) ---
 
