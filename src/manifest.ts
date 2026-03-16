@@ -77,6 +77,21 @@ const manifest: PaperclipPluginManifestV1 = {
         description: "Channel ID for agent run lifecycle events. Falls back to default channel.",
         default: DEFAULT_CONFIG.bdPipelineChannelId,
       },
+      ceoDecisionsChannelId: {
+        type: "string",
+        title: "CEO Decisions Channel ID",
+        description: "Channel ID for CEO strategic decisions and retrospective proposals.",
+      },
+      dailyDigestChannelId: {
+        type: "string",
+        title: "Daily Digest Channel ID",
+        description: "Channel ID for daily pipeline statistics.",
+      },
+      tgPartnersForumChannelId: {
+        type: "string",
+        title: "TG Partners Forum Channel ID",
+        description: "Forum channel ID for Telegram group message mirrors.",
+      },
       notifyOnIssueCreated: {
         type: "boolean",
         title: "Notify on issue created",

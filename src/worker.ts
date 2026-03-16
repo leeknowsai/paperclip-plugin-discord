@@ -39,6 +39,9 @@ type DiscordConfig = {
   approvalsChannelId: string;
   errorsChannelId: string;
   bdPipelineChannelId: string;
+  ceoDecisionsChannelId: string;
+  dailyDigestChannelId: string;
+  tgPartnersForumChannelId: string;
   notifyOnIssueCreated: boolean;
   notifyOnIssueDone: boolean;
   notifyOnApprovalCreated: boolean;
@@ -165,16 +168,16 @@ const plugin = definePlugin({
       notify(event, formatApprovalNeeded, config.approvalsChannelId),
     );
     ctx.events.on("plugin.x-watchdog.tg-message", (event: PluginEvent) =>
-      notify(event, formatTgMessage, config.bdPipelineChannelId),
+      notify(event, formatTgMessage, config.tgPartnersForumChannelId || config.bdPipelineChannelId),
     );
     ctx.events.on("plugin.x-watchdog.tg-member-joined", (event: PluginEvent) =>
-      notify(event, formatTgMemberJoined, config.bdPipelineChannelId),
+      notify(event, formatTgMemberJoined, config.tgPartnersForumChannelId || config.bdPipelineChannelId),
     );
     ctx.events.on("plugin.x-watchdog.lead-converted", (event: PluginEvent) =>
       notify(event, formatLeadConverted, config.bdPipelineChannelId),
     );
     ctx.events.on("plugin.x-watchdog.ceo-proposal", (event: PluginEvent) =>
-      notify(event, formatCeoProposal, config.approvalsChannelId),
+      notify(event, formatCeoProposal, config.ceoDecisionsChannelId || config.approvalsChannelId),
     );
     ctx.events.on("plugin.x-watchdog.error", (event: PluginEvent) =>
       notify(event, formatXWatchdogError, config.errorsChannelId),
