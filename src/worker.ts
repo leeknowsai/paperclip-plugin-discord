@@ -19,6 +19,14 @@ import {
   formatAgentError,
   formatAgentRunStarted,
   formatAgentRunFinished,
+  formatHighScore,
+  formatNewLead,
+  formatApprovalNeeded,
+  formatTgMessage,
+  formatTgMemberJoined,
+  formatLeadConverted,
+  formatCeoProposal,
+  formatXWatchdogError,
 } from "./formatters.js";
 import { handleInteraction, SLASH_COMMANDS } from "./commands.js";
 import { runIntelligenceScan, runBackfill } from "./intelligence.js";
@@ -144,6 +152,32 @@ const plugin = definePlugin({
     );
     ctx.events.on("agent.run.finished", (event: PluginEvent) =>
       notify(event, formatAgentRunFinished, config.bdPipelineChannelId),
+    );
+
+    // --- X Watchdog event subscriptions ---
+    ctx.events.on("plugin.x-watchdog.high-score", (event: PluginEvent) =>
+      notify(event, formatHighScore, config.bdPipelineChannelId),
+    );
+    ctx.events.on("plugin.x-watchdog.new-lead", (event: PluginEvent) =>
+      notify(event, formatNewLead, config.bdPipelineChannelId),
+    );
+    ctx.events.on("plugin.x-watchdog.approval-needed", (event: PluginEvent) =>
+      notify(event, formatApprovalNeeded, config.approvalsChannelId),
+    );
+    ctx.events.on("plugin.x-watchdog.tg-message", (event: PluginEvent) =>
+      notify(event, formatTgMessage, config.bdPipelineChannelId),
+    );
+    ctx.events.on("plugin.x-watchdog.tg-member-joined", (event: PluginEvent) =>
+      notify(event, formatTgMemberJoined, config.bdPipelineChannelId),
+    );
+    ctx.events.on("plugin.x-watchdog.lead-converted", (event: PluginEvent) =>
+      notify(event, formatLeadConverted, config.bdPipelineChannelId),
+    );
+    ctx.events.on("plugin.x-watchdog.ceo-proposal", (event: PluginEvent) =>
+      notify(event, formatCeoProposal, config.approvalsChannelId),
+    );
+    ctx.events.on("plugin.x-watchdog.error", (event: PluginEvent) =>
+      notify(event, formatXWatchdogError, config.errorsChannelId),
     );
 
     // --- Per-company channel overrides ---

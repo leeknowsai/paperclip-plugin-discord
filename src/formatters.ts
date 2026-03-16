@@ -238,3 +238,149 @@ export function formatAgentRunFinished(event: PluginEvent): DiscordMessage {
     ],
   };
 }
+
+// --- X Watchdog formatters ---
+
+export function formatHighScore(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  return {
+    embeds: [{
+      title: "High Score Tweet Detected",
+      description: `**@${p.handle}**: ${String(p.text ?? "").slice(0, 300)}`,
+      color: COLORS.BLUE,
+      fields: [
+        { name: "Score", value: `${p.score}/10`, inline: true },
+        { name: "Project", value: String(p.projectName ?? "—"), inline: true },
+        { name: "Category", value: String(p.category ?? "—"), inline: true },
+      ],
+      footer: { text: "X Watchdog" },
+      timestamp: event.occurredAt,
+    }],
+  };
+}
+
+export function formatNewLead(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  return {
+    embeds: [{
+      title: "New Lead Detected",
+      description: `**@${p.handle}** added to pipeline`,
+      color: COLORS.GREEN,
+      fields: [
+        { name: "Score", value: `${p.score}/10`, inline: true },
+        { name: "Signal", value: String(p.signalType ?? "tweet"), inline: true },
+        { name: "Project", value: String(p.projectName ?? "—"), inline: true },
+      ],
+      footer: { text: "X Watchdog" },
+      timestamp: event.occurredAt,
+    }],
+  };
+}
+
+export function formatApprovalNeeded(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  return {
+    embeds: [{
+      title: "Outreach Approval Needed",
+      description: `**@${p.handle}** — ${String(p.messagePreview ?? "").slice(0, 200)}`,
+      color: COLORS.YELLOW,
+      fields: [
+        { name: "Action", value: String(p.action ?? "dm"), inline: true },
+        { name: "Project", value: String(p.projectName ?? "—"), inline: true },
+      ],
+      footer: { text: "X Watchdog" },
+      timestamp: event.occurredAt,
+    }],
+    components: [{
+      type: 1,
+      components: [
+        { type: 2, style: 3, label: "Approve", custom_id: `xwd_approve_${p.leadId}` },
+        { type: 2, style: 4, label: "Reject", custom_id: `xwd_reject_${p.leadId}` },
+      ],
+    }],
+  };
+}
+
+export function formatTgMessage(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  const sender = p.sender as { username?: string; displayName?: string } | undefined;
+  return {
+    embeds: [{
+      title: `TG: ${sender?.displayName ?? sender?.username ?? "Unknown"}`,
+      description: String(p.text ?? "").slice(0, 500),
+      color: COLORS.BLUE,
+      fields: [
+        { name: "Group", value: String(p.groupId ?? "—"), inline: true },
+      ],
+      footer: { text: "X Watchdog — TG Mirror" },
+      timestamp: String(p.timestamp ?? event.occurredAt),
+    }],
+  };
+}
+
+export function formatTgMemberJoined(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  const isLead = Boolean(p.isLead);
+  return {
+    embeds: [{
+      title: isLead ? "Lead Joined TG Group!" : "New TG Group Member",
+      description: `**@${p.username}** joined the group`,
+      color: isLead ? COLORS.GREEN : COLORS.BLUE,
+      fields: [
+        { name: "Group", value: String(p.groupId ?? "—"), inline: true },
+        ...(isLead ? [{ name: "Lead ID", value: String(p.leadId), inline: true }] : []),
+      ],
+      footer: { text: "X Watchdog" },
+      timestamp: event.occurredAt,
+    }],
+  };
+}
+
+export function formatLeadConverted(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  return {
+    embeds: [{
+      title: "Lead Converted!",
+      description: `**@${p.handle}** → TG @${p.tgUsername}`,
+      color: COLORS.GREEN,
+      fields: [
+        { name: "Project", value: String(p.projectId ?? "—"), inline: true },
+      ],
+      footer: { text: "X Watchdog" },
+      timestamp: event.occurredAt,
+    }],
+  };
+}
+
+export function formatCeoProposal(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  return {
+    embeds: [{
+      title: "CEO Retrospective Proposal",
+      description: String(p.summary ?? "").slice(0, 500),
+      color: COLORS.YELLOW,
+      fields: [
+        { name: "Period", value: String(p.periodDays ?? "7") + " days", inline: true },
+        { name: "Leads Analyzed", value: String(p.leadsAnalyzed ?? "—"), inline: true },
+      ],
+      footer: { text: "X Watchdog" },
+      timestamp: event.occurredAt,
+    }],
+  };
+}
+
+export function formatXWatchdogError(event: PluginEvent): DiscordMessage {
+  const p = event.payload as Payload;
+  return {
+    embeds: [{
+      title: "X Watchdog Error",
+      description: String(p.message ?? p.error ?? "Unknown error").slice(0, 500),
+      color: COLORS.RED,
+      fields: [
+        { name: "Component", value: String(p.component ?? "—"), inline: true },
+      ],
+      footer: { text: "X Watchdog" },
+      timestamp: event.occurredAt,
+    }],
+  };
+}

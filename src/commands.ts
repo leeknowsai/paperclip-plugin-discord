@@ -284,6 +284,57 @@ async function handleButtonClick(
     };
   }
 
+  // --- X Watchdog approval buttons ---
+  if (customId.startsWith("xwd_approve_")) {
+    const leadId = customId.replace("xwd_approve_", "");
+    ctx.logger.info("X Watchdog approve clicked", { leadId, actor });
+
+    await ctx.events.emit("plugin.x-watchdog.ceo-decision", "", {
+      leadId,
+      decision: "approved",
+      decidedBy: actor,
+    });
+
+    return {
+      type: 7,
+      data: {
+        embeds: [{
+          title: "Outreach Approved",
+          description: `**Approved** by ${actor} — lead ${leadId}`,
+          color: COLORS.GREEN,
+          footer: { text: "X Watchdog" },
+          timestamp: new Date().toISOString(),
+        }],
+        components: [],
+      },
+    };
+  }
+
+  if (customId.startsWith("xwd_reject_")) {
+    const leadId = customId.replace("xwd_reject_", "");
+    ctx.logger.info("X Watchdog reject clicked", { leadId, actor });
+
+    await ctx.events.emit("plugin.x-watchdog.ceo-decision", "", {
+      leadId,
+      decision: "rejected",
+      decidedBy: actor,
+    });
+
+    return {
+      type: 7,
+      data: {
+        embeds: [{
+          title: "Outreach Rejected",
+          description: `**Rejected** by ${actor} — lead ${leadId}`,
+          color: COLORS.RED,
+          footer: { text: "X Watchdog" },
+          timestamp: new Date().toISOString(),
+        }],
+        components: [],
+      },
+    };
+  }
+
   return respondToInteraction({
     type: 4,
     content: "Unknown button action.",
