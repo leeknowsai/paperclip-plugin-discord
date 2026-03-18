@@ -5,12 +5,15 @@ import {
   type PluginEvent,
   type PluginWebhookInput,
   type PluginHealthDiagnostics,
+  type AgentSessionEvent,
 } from "@paperclipai/plugin-sdk";
 import { WEBHOOK_KEYS } from "./constants.js";
 import {
   postEmbed,
   getApplicationId,
   registerSlashCommands,
+  createThread,
+  sendToThread,
 } from "./discord-api.js";
 import {
   formatIssueCreated,
@@ -49,6 +52,7 @@ type DiscordConfig = {
   enableIntelligence: boolean;
   intelligenceChannelIds: string[];
   backfillDays: number;
+  streamToDiscord: boolean;
 };
 
 async function resolveChannel(
@@ -150,12 +154,99 @@ const plugin = definePlugin({
     }
 
     // Always subscribe to run lifecycle for activity logging
-    ctx.events.on("agent.run.started", (event: PluginEvent) =>
-      notify(event, formatAgentRunStarted, config.bdPipelineChannelId),
-    );
-    ctx.events.on("agent.run.finished", (event: PluginEvent) =>
-      notify(event, formatAgentRunFinished, config.bdPipelineChannelId),
-    );
+    // Track active streaming threads for cleanup on run finish
+    const activeStreamThreads = new Map<string, { threadId: string; flushTimer: ReturnType<typeof setInterval>; buffer: string[] }>();
+
+    ctx.events.on("agent.run.started", async (event: PluginEvent) => {
+      await notify(event, formatAgentRunStarted, config.bdPipelineChannelId);
+
+      // Stream agent output to a Discord thread if enabled
+      if (config.streamToDiscord) {
+        const payload = event.payload as Record<string, unknown>;
+        const agentId = payload.agentId as string | undefined;
+        const agentName = (payload.agentName as string) ?? "Agent";
+        const runId = (payload.runId as string) ?? event.entityId;
+        const companyId = event.companyId;
+
+        if (!agentId || !companyId) return;
+
+        const channelId = config.bdPipelineChannelId || config.defaultChannelId;
+        const threadId = await createThread(ctx, token, channelId, `Run: ${agentName}`);
+        if (!threadId) return;
+
+        const buffer: string[] = [];
+        const flushInterval = setInterval(async () => {
+          if (buffer.length > 0) {
+            const text = buffer.splice(0).join("");
+            if (text.trim()) {
+              await sendToThread(ctx, token, threadId, text.slice(0, 2000));
+            }
+          }
+        }, 5000);
+
+        activeStreamThreads.set(runId, { threadId, flushTimer: flushInterval, buffer });
+
+        // Start a session and stream output
+        try {
+          const session = await ctx.agents.sessions.create(agentId, companyId, {
+            reason: "Discord live stream",
+          });
+
+          await ctx.agents.sessions.sendMessage(session.sessionId, companyId, {
+            prompt: "Continue your current task. This session is for live output streaming.",
+            onEvent: (ev: AgentSessionEvent) => {
+              if (ev.eventType === "chunk" && ev.message) {
+                buffer.push(ev.message);
+              } else if (ev.eventType === "done") {
+                // Flush remaining buffer
+                if (buffer.length > 0) {
+                  const text = buffer.splice(0).join("");
+                  if (text.trim()) {
+                    sendToThread(ctx, token, threadId, text.slice(0, 2000)).catch(() => {});
+                  }
+                }
+                sendToThread(ctx, token, threadId, "--- Run completed ---").catch(() => {});
+                clearInterval(flushInterval);
+                activeStreamThreads.delete(runId);
+                ctx.agents.sessions.close(session.sessionId, companyId).catch(() => {});
+              } else if (ev.eventType === "error") {
+                sendToThread(ctx, token, threadId, `Error: ${ev.message ?? "Unknown error"}`).catch(() => {});
+                clearInterval(flushInterval);
+                activeStreamThreads.delete(runId);
+                ctx.agents.sessions.close(session.sessionId, companyId).catch(() => {});
+              }
+            },
+          });
+        } catch (err) {
+          ctx.logger.error("Failed to create streaming session", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          await sendToThread(ctx, token, threadId, "Failed to start live stream");
+          clearInterval(flushInterval);
+          activeStreamThreads.delete(runId);
+        }
+      }
+    });
+
+    ctx.events.on("agent.run.finished", async (event: PluginEvent) => {
+      await notify(event, formatAgentRunFinished, config.bdPipelineChannelId);
+
+      // Clean up any active streaming thread for this run
+      const payload = event.payload as Record<string, unknown>;
+      const runId = (payload.runId as string) ?? event.entityId;
+      const stream = activeStreamThreads.get(runId);
+      if (stream) {
+        clearInterval(stream.flushTimer);
+        if (stream.buffer.length > 0) {
+          const text = stream.buffer.splice(0).join("");
+          if (text.trim()) {
+            await sendToThread(ctx, token, stream.threadId, text.slice(0, 2000));
+          }
+        }
+        await sendToThread(ctx, token, stream.threadId, "--- Run finished ---");
+        activeStreamThreads.delete(runId);
+      }
+    });
 
     // --- X Watchdog event subscriptions ---
     ctx.events.on("plugin.x-watchdog.high-score", (event: PluginEvent) =>

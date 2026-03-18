@@ -33,6 +33,10 @@ const manifest: PaperclipPluginManifestV1 = {
     "metrics.write",
     "agent.tools.register",
     "jobs.schedule",
+    "agent.sessions.create",
+    "agent.sessions.list",
+    "agent.sessions.send",
+    "agent.sessions.close",
   ],
   entrypoints: {
     worker: "./dist/worker.js",
@@ -134,6 +138,13 @@ const manifest: PaperclipPluginManifestV1 = {
         default: 90,
         minimum: 0,
         maximum: 365,
+      },
+      streamToDiscord: {
+        type: "boolean",
+        title: "Stream agent output to Discord threads",
+        description:
+          "When enabled, creates a Discord thread for each agent run and streams live output to it.",
+        default: false,
       },
     },
     required: ["discordBotTokenRef", "defaultChannelId"],

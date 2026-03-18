@@ -243,6 +243,63 @@ export async function getApplicationId(
   }
 }
 
+export async function createThread(
+  ctx: PluginContext,
+  token: string,
+  channelId: string,
+  name: string,
+): Promise<string | null> {
+  try {
+    const response = await discordFetch(
+      ctx,
+      token,
+      `/channels/${channelId}/threads`,
+      {
+        method: "POST",
+        body: {
+          name: name.slice(0, 100),
+          type: 11, // PUBLIC_THREAD
+          auto_archive_duration: 1440, // 24 hours
+        },
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      ctx.logger.warn("Failed to create Discord thread", { status: response.status, body: text });
+      return null;
+    }
+    const thread = (await response.json()) as { id: string };
+    return thread.id;
+  } catch (error) {
+    ctx.logger.error("Discord thread creation failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+export async function sendToThread(
+  ctx: PluginContext,
+  token: string,
+  threadId: string,
+  content: string,
+): Promise<boolean> {
+  try {
+    const response = await discordFetch(
+      ctx,
+      token,
+      `/channels/${threadId}/messages`,
+      {
+        method: "POST",
+        body: { content: content.slice(0, 2000) },
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function respondToInteraction(data: {
   type: number;
   content?: string;
